@@ -3,12 +3,19 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "dev": "nodemon --exec ts-node src/index",
+    "start": "node build/index"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/node": "^22.9.3",
+    "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "nodemon": "^3.1.7"
   }
 }
