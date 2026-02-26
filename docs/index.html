@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>US ETF Database - レバレッジETF比較ツール</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>US ETF Database</h1>
+      <p class="subtitle">米国ETF レバレッジ比較 &amp; フィルタリングツール</p>
+    </div>
+  </header>
+
+  <main>
+    <!-- Summary Cards -->
+    <section class="summary-cards" id="summaryCards"></section>
+
+    <!-- Filters -->
+    <section class="filters">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="searchInput">銘柄検索</label>
+          <input type="text" id="searchInput" placeholder="ティッカーまたは名前で検索..." />
+        </div>
+        <div class="filter-group">
+          <label for="categoryFilter">カテゴリ</label>
+          <select id="categoryFilter">
+            <option value="all">すべて</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="indexFilter">指数 / ベンチマーク</label>
+          <select id="indexFilter">
+            <option value="all">すべて</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="leverageFilter">レバレッジ</label>
+          <select id="leverageFilter">
+            <option value="all">すべて</option>
+            <option value="1">1x (通常)</option>
+            <option value="2">2x ブル</option>
+            <option value="3">3x ブル</option>
+            <option value="-1">-1x インバース</option>
+            <option value="-2">-2x インバース</option>
+            <option value="-3">-3x インバース</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button id="resetFilters" class="btn btn-secondary">フィルタリセット</button>
+        <span id="resultCount" class="result-count"></span>
+      </div>
+    </section>
+
+    <!-- View Toggle -->
+    <section class="view-toggle">
+      <button id="viewTable" class="btn btn-view active" data-view="table">テーブル表示</button>
+      <button id="viewGroup" class="btn btn-view" data-view="group">グループ表示</button>
+      <button id="viewCompare" class="btn btn-view" data-view="compare">レバレッジ比較</button>
+    </section>
+
+    <!-- Table View -->
+    <section id="tableView" class="view-section">
+      <div class="table-wrapper">
+        <table id="etfTable">
+          <thead>
+            <tr>
+              <th data-sort="symbol" class="sortable">ティッカー <span class="sort-icon"></span></th>
+              <th data-sort="name" class="sortable">ETF名 <span class="sort-icon"></span></th>
+              <th data-sort="leverage" class="sortable">レバレッジ <span class="sort-icon"></span></th>
+              <th data-sort="index" class="sortable">指数 <span class="sort-icon"></span></th>
+              <th data-sort="category" class="sortable">カテゴリ <span class="sort-icon"></span></th>
+              <th data-sort="issuer" class="sortable">発行者 <span class="sort-icon"></span></th>
+              <th data-sort="expenseRatio" class="sortable">経費率 <span class="sort-icon"></span></th>
+            </tr>
+          </thead>
+          <tbody id="etfTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Group View -->
+    <section id="groupView" class="view-section hidden">
+      <div id="groupContainer"></div>
+    </section>
+
+    <!-- Compare View -->
+    <section id="compareView" class="view-section hidden">
+      <div id="compareContainer"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>参考: <a href="https://www.bustudy.kr/usetf" target="_blank" rel="noopener">bustudy.kr/usetf</a> | ETFデータは参考用です。投資判断は自己責任で行ってください。</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
