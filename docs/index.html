@@ -3,102 +3,211 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>US ETF Database - レバレッジETF比較ツール</title>
+  <title>US ETF Leverage Backtester</title>
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 </head>
 <body>
   <header>
     <div class="header-inner">
-      <h1>US ETF Database</h1>
-      <p class="subtitle">米国ETF レバレッジ比較 &amp; フィルタリングツール</p>
+      <h1>US ETF Leverage Backtester</h1>
+      <p class="subtitle">米国ETF レバレッジ・バックテストシミュレーター</p>
     </div>
   </header>
 
-  <main>
-    <!-- Summary Cards -->
-    <section class="summary-cards" id="summaryCards"></section>
+  <main class="app-layout">
+    <!-- ===== Left Panel: Settings ===== -->
+    <aside class="settings-panel" id="settingsPanel">
+      <!-- Mode Toggle -->
+      <div class="mode-toggle">
+        <button class="mode-btn active" data-mode="basic" id="modeBasic">基本モード</button>
+        <button class="mode-btn" data-mode="expert" id="modeExpert">専門家モード</button>
+      </div>
 
-    <!-- Filters -->
-    <section class="filters">
-      <div class="filter-row">
-        <div class="filter-group">
-          <label for="searchInput">銘柄検索</label>
-          <input type="text" id="searchInput" placeholder="ティッカーまたは名前で検索..." />
-        </div>
-        <div class="filter-group">
-          <label for="categoryFilter">カテゴリ</label>
-          <select id="categoryFilter">
-            <option value="all">すべて</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label for="indexFilter">指数 / ベンチマーク</label>
-          <select id="indexFilter">
-            <option value="all">すべて</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label for="leverageFilter">レバレッジ</label>
-          <select id="leverageFilter">
-            <option value="all">すべて</option>
-            <option value="1">1x (通常)</option>
-            <option value="2">2x ブル</option>
-            <option value="3">3x ブル</option>
-            <option value="-1">-1x インバース</option>
-            <option value="-2">-2x インバース</option>
-            <option value="-3">-3x インバース</option>
-          </select>
+      <!-- Index Selection -->
+      <div class="setting-section">
+        <label class="setting-label">指数</label>
+        <select id="indexSelect">
+          <option value="sp500">S&P 500</option>
+          <option value="nasdaq100">Nasdaq 100</option>
+          <option value="dowjones">Dow Jones</option>
+        </select>
+      </div>
+
+      <!-- Leverage Selection -->
+      <div class="setting-section">
+        <label class="setting-label">レバレッジ倍率</label>
+        <div class="leverage-options">
+          <label class="radio-label"><input type="radio" name="leverage" value="1" /> 1x</label>
+          <label class="radio-label"><input type="radio" name="leverage" value="2" /> 2x</label>
+          <label class="radio-label"><input type="radio" name="leverage" value="3" /> 3x</label>
+          <label class="radio-label"><input type="radio" name="leverage" value="all" checked /> 全て比較</label>
         </div>
       </div>
-      <div class="filter-actions">
-        <button id="resetFilters" class="btn btn-secondary">フィルタリセット</button>
-        <span id="resultCount" class="result-count"></span>
+
+      <!-- Investment Type -->
+      <div class="setting-section">
+        <label class="setting-label">投資方式</label>
+        <div class="leverage-options">
+          <label class="radio-label"><input type="radio" name="investType" value="lump" checked /> 一括投資</label>
+          <label class="radio-label"><input type="radio" name="investType" value="dca" /> 積立投資</label>
+        </div>
       </div>
-    </section>
 
-    <!-- View Toggle -->
-    <section class="view-toggle">
-      <button id="viewTable" class="btn btn-view active" data-view="table">テーブル表示</button>
-      <button id="viewGroup" class="btn btn-view" data-view="group">グループ表示</button>
-      <button id="viewCompare" class="btn btn-view" data-view="compare">レバレッジ比較</button>
-    </section>
-
-    <!-- Table View -->
-    <section id="tableView" class="view-section">
-      <div class="table-wrapper">
-        <table id="etfTable">
-          <thead>
-            <tr>
-              <th data-sort="symbol" class="sortable">ティッカー <span class="sort-icon"></span></th>
-              <th data-sort="name" class="sortable">ETF名 <span class="sort-icon"></span></th>
-              <th data-sort="leverage" class="sortable">レバレッジ <span class="sort-icon"></span></th>
-              <th data-sort="index" class="sortable">指数 <span class="sort-icon"></span></th>
-              <th data-sort="category" class="sortable">カテゴリ <span class="sort-icon"></span></th>
-              <th data-sort="issuer" class="sortable">発行者 <span class="sort-icon"></span></th>
-              <th data-sort="expenseRatio" class="sortable">経費率 <span class="sort-icon"></span></th>
-            </tr>
-          </thead>
-          <tbody id="etfTableBody"></tbody>
-        </table>
+      <!-- Investment Amount -->
+      <div class="setting-section">
+        <label class="setting-label">初期投資額 ($)</label>
+        <input type="number" id="initialAmount" value="10000" min="100" step="100" />
       </div>
-    </section>
 
-    <!-- Group View -->
-    <section id="groupView" class="view-section hidden">
-      <div id="groupContainer"></div>
-    </section>
+      <!-- DCA Settings -->
+      <div class="setting-section dca-settings hidden" id="dcaSettings">
+        <label class="setting-label">定期積立額 ($)</label>
+        <input type="number" id="dcaAmount" value="500" min="0" step="50" />
+        <label class="setting-label" style="margin-top:0.6rem">積立頻度</label>
+        <select id="dcaFrequency">
+          <option value="monthly">毎月</option>
+          <option value="weekly">毎週</option>
+          <option value="yearly">毎年</option>
+        </select>
+        <label class="setting-label" style="margin-top:0.6rem">年間積立増加率 (%)</label>
+        <input type="number" id="dcaIncrease" value="0" min="0" max="50" step="1" />
+      </div>
 
-    <!-- Compare View -->
-    <section id="compareView" class="view-section hidden">
-      <div id="compareContainer"></div>
+      <!-- Period -->
+      <div class="setting-section">
+        <label class="setting-label">投資期間</label>
+        <div class="date-row">
+          <div>
+            <label class="sub-label">開始日</label>
+            <input type="date" id="startDate" value="2000-01-03" />
+          </div>
+          <div>
+            <label class="sub-label">終了日</label>
+            <input type="date" id="endDate" value="2025-12-31" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Crisis Presets -->
+      <div class="setting-section">
+        <label class="setting-label">危機期間プリセット</label>
+        <select id="crisisPreset">
+          <option value="">カスタム</option>
+          <option value="dotcom">ドットコム・バブル (2000-2002)</option>
+          <option value="gfc">リーマンショック (2007-2009)</option>
+          <option value="covid">コロナショック (2020)</option>
+          <option value="2022bear">2022年ベア相場 (2022)</option>
+          <option value="full">全期間 (1990-現在)</option>
+          <option value="bull2010">ブル相場 (2010-2020)</option>
+          <option value="recent10">直近10年</option>
+          <option value="recent5">直近5年</option>
+        </select>
+      </div>
+
+      <!-- Expense Ratio -->
+      <div class="setting-section">
+        <label class="checkbox-label">
+          <input type="checkbox" id="includeExpense" checked />
+          経費率を反映（1x:0.03%, 2x:0.90%, 3x:0.95%）
+        </label>
+      </div>
+
+      <!-- Expert Mode Settings -->
+      <div class="expert-settings hidden" id="expertSettings">
+        <div class="setting-section">
+          <label class="setting-label">テスト方式</label>
+          <select id="expertTestType">
+            <option value="single">単一期間テスト</option>
+            <option value="fixed">固定期間テスト</option>
+            <option value="rolling">ローリングテスト</option>
+          </select>
+        </div>
+        <div class="setting-section rolling-settings hidden" id="rollingSettings">
+          <label class="setting-label">ローリング期間 (年)</label>
+          <input type="number" id="rollingYears" value="5" min="1" max="30" step="1" />
+        </div>
+        <div class="setting-section fixed-settings hidden" id="fixedSettings">
+          <label class="setting-label">固定投資期間 (年)</label>
+          <input type="number" id="fixedYears" value="10" min="1" max="30" step="1" />
+        </div>
+      </div>
+
+      <button class="btn-run" id="runBacktest">バックテスト実行</button>
+    </aside>
+
+    <!-- ===== Right Panel: Results ===== -->
+    <section class="results-panel" id="resultsPanel">
+      <div class="results-placeholder" id="resultsPlaceholder">
+        <div class="placeholder-icon">&#128200;</div>
+        <h2>バックテストを実行してください</h2>
+        <p>左パネルで投資条件を設定し、「バックテスト実行」ボタンを押してください。</p>
+        <p class="data-info">S&P 500 / Nasdaq 100 / Dow Jones<br>1990年〜現在の日次データを収録</p>
+      </div>
+
+      <div class="results-content hidden" id="resultsContent">
+        <div class="stats-cards" id="statsCards"></div>
+
+        <div class="chart-section">
+          <div class="chart-header">
+            <h3 id="chartTitle">資産推移</h3>
+            <div class="chart-controls">
+              <button class="chart-btn active" data-scale="linear" id="scaleLinear">線形</button>
+              <button class="chart-btn" data-scale="log" id="scaleLog">対数</button>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="mainChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-section" id="drawdownSection">
+          <div class="chart-header"><h3>ドローダウン推移</h3></div>
+          <div class="chart-wrapper">
+            <canvas id="drawdownChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-section hidden" id="rollingSection">
+          <div class="chart-header"><h3 id="rollingTitle">ローリングリターン</h3></div>
+          <div class="chart-wrapper">
+            <canvas id="rollingChart"></canvas>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>詳細統計</h3>
+          <div class="stats-table-wrapper">
+            <table class="stats-table" id="statsTable">
+              <thead><tr id="statsTableHead"></tr></thead>
+              <tbody id="statsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="detail-section" id="yearlySection">
+          <h3>年別リターン</h3>
+          <div class="stats-table-wrapper">
+            <table class="stats-table" id="yearlyTable">
+              <thead><tr id="yearlyTableHead"></tr></thead>
+              <tbody id="yearlyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
   <footer>
-    <p>参考: <a href="https://www.bustudy.kr/usetf" target="_blank" rel="noopener">bustudy.kr/usetf</a> | ETFデータは参考用です。投資判断は自己責任で行ってください。</p>
+    <p>本シミュレーターは過去データに基づく参考ツールです。将来の投資成果を保証するものではありません。</p>
+    <p>参考: <a href="https://www.bustudy.kr/usetf" target="_blank" rel="noopener">bustudy.kr/usetf</a> | データ提供: Stooq.com</p>
   </footer>
 
-  <script src="data.js"></script>
+  <script src="data/sp500.js"></script>
+  <script src="data/nasdaq100.js"></script>
+  <script src="data/dowjones.js"></script>
+  <script src="engine.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,317 +1,502 @@
-// ===== State =====
-let currentSort = { key: "symbol", dir: "asc" };
-let currentView = "table";
+// ===== Chart Instances =====
+let mainChart = null;
+let drawdownChart = null;
+let rollingChart = null;
+let currentResults = null;
+let currentMode = "basic";
 
-// ===== DOM Elements =====
-const searchInput = document.getElementById("searchInput");
-const categoryFilter = document.getElementById("categoryFilter");
-const indexFilter = document.getElementById("indexFilter");
-const leverageFilter = document.getElementById("leverageFilter");
-const resetBtn = document.getElementById("resetFilters");
-const resultCount = document.getElementById("resultCount");
-const tableBody = document.getElementById("etfTableBody");
-const summaryCards = document.getElementById("summaryCards");
-const groupContainer = document.getElementById("groupContainer");
-const compareContainer = document.getElementById("compareContainer");
-const viewBtns = document.querySelectorAll(".btn-view");
-
-// ===== Init =====
+// ===== DOM Ready =====
 document.addEventListener("DOMContentLoaded", () => {
-  populateFilters();
-  renderSummaryCards();
-  renderTable();
   bindEvents();
+  setDateRange();
 });
 
-// ===== Populate Filter Dropdowns =====
-function populateFilters() {
-  const categories = [...new Set(ETF_TICKERS.map((t) => t.category))];
-  categories.forEach((cat) => {
-    const opt = document.createElement("option");
-    opt.value = cat;
-    opt.textContent = CATEGORY_LABELS[cat] || cat;
-    categoryFilter.appendChild(opt);
-  });
-
-  const indices = [...new Set(ETF_TICKERS.map((t) => t.index))];
-  indices.sort();
-  indices.forEach((idx) => {
-    const opt = document.createElement("option");
-    opt.value = idx;
-    opt.textContent = idx;
-    indexFilter.appendChild(opt);
-  });
-}
-
-// ===== Summary Cards =====
-function renderSummaryCards() {
-  const total = ETF_TICKERS.length;
-  const categories = new Set(ETF_TICKERS.map((t) => t.category)).size;
-  const indices = new Set(ETF_TICKERS.map((t) => t.index)).size;
-  const leveraged = ETF_TICKERS.filter((t) => Math.abs(t.leverage) > 1).length;
-  const issuers = new Set(ETF_TICKERS.map((t) => t.issuer)).size;
-
-  const cards = [
-    { value: total, label: "ETF銘柄数" },
-    { value: categories, label: "カテゴリ" },
-    { value: indices, label: "指数/ベンチマーク" },
-    { value: leveraged, label: "レバレッジETF" },
-    { value: issuers, label: "発行者" },
-  ];
-
-  summaryCards.innerHTML = cards
-    .map(
-      (c) => `
-    <div class="summary-card">
-      <div class="card-value">${c.value}</div>
-      <div class="card-label">${c.label}</div>
-    </div>
-  `
-    )
-    .join("");
-}
-
-// ===== Filtering =====
-function getFilteredTickers() {
-  const search = searchInput.value.toLowerCase().trim();
-  const cat = categoryFilter.value;
-  const idx = indexFilter.value;
-  const lev = leverageFilter.value;
-
-  return ETF_TICKERS.filter((t) => {
-    if (search && !t.symbol.toLowerCase().includes(search) && !t.name.toLowerCase().includes(search)) return false;
-    if (cat !== "all" && t.category !== cat) return false;
-    if (idx !== "all" && t.index !== idx) return false;
-    if (lev !== "all" && t.leverage !== Number(lev)) return false;
-    return true;
-  });
-}
-
-// ===== Sorting =====
-function sortTickers(tickers) {
-  const { key, dir } = currentSort;
-  return [...tickers].sort((a, b) => {
-    let va = a[key];
-    let vb = b[key];
-    if (typeof va === "string") {
-      va = va.toLowerCase();
-      vb = vb.toLowerCase();
-    }
-    if (va < vb) return dir === "asc" ? -1 : 1;
-    if (va > vb) return dir === "asc" ? 1 : -1;
-    return 0;
-  });
-}
-
-// ===== Leverage Badge =====
-function leverageBadge(lev) {
-  const abs = Math.abs(lev);
-  let cls = "leverage-1x";
-  if (lev < 0) cls = "leverage-inverse";
-  else if (abs === 2) cls = "leverage-2x";
-  else if (abs === 3) cls = "leverage-3x";
-
-  const label = lev > 0 ? `${lev}x` : `${lev}x`;
-  return `<span class="leverage-badge ${cls}">${label}</span>`;
-}
-
-// ===== Category Badge =====
-function categoryBadge(cat) {
-  const label = CATEGORY_LABELS[cat] || cat;
-  return `<span class="category-badge cat-${cat}">${label}</span>`;
-}
-
-// ===== Expense Ratio Display =====
-function formatExpenseRatio(ratio) {
-  return (ratio * 100).toFixed(2) + "%";
-}
-
-// ===== Render Table =====
-function renderTable() {
-  const filtered = getFilteredTickers();
-  const sorted = sortTickers(filtered);
-
-  resultCount.textContent = `${sorted.length} / ${ETF_TICKERS.length} 件表示`;
-
-  tableBody.innerHTML = sorted
-    .map(
-      (t) => `
-    <tr>
-      <td><span class="ticker-badge">${t.symbol}</span></td>
-      <td>${t.name}</td>
-      <td>${leverageBadge(t.leverage)}</td>
-      <td>${t.index}</td>
-      <td>${categoryBadge(t.category)}</td>
-      <td>${t.issuer}</td>
-      <td>${formatExpenseRatio(t.expenseRatio)}</td>
-    </tr>
-  `
-    )
-    .join("");
-
-  // Update sort indicators
-  document.querySelectorAll("#etfTable th").forEach((th) => {
-    th.classList.remove("sort-asc", "sort-desc");
-    if (th.dataset.sort === currentSort.key) {
-      th.classList.add(currentSort.dir === "asc" ? "sort-asc" : "sort-desc");
-    }
-  });
-}
-
-// ===== Render Group View =====
-function renderGroupView() {
-  const filtered = getFilteredTickers();
-  const groups = new Map();
-
-  filtered.forEach((t) => {
-    const key = t.index;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(t);
-  });
-
-  resultCount.textContent = `${filtered.length} / ${ETF_TICKERS.length} 件表示`;
-
-  groupContainer.innerHTML = Array.from(groups.entries())
-    .map(
-      ([indexName, tickers]) => `
-    <div class="group-section">
-      <div class="group-header">
-        <h3>${indexName}</h3>
-        ${categoryBadge(tickers[0].category)}
-        <span class="group-count">${tickers.length}銘柄</span>
-      </div>
-      <div class="group-tickers">
-        ${tickers
-          .sort((a, b) => a.leverage - b.leverage)
-          .map(
-            (t) => `
-          <div class="group-ticker-card">
-            <span class="ticker-symbol">${t.symbol}</span>
-            ${leverageBadge(t.leverage)}
-            <span class="ticker-name">${t.name}</span>
-            <div class="ticker-meta">
-              <span style="font-size:0.75rem;color:var(--text-muted)">${t.issuer}</span>
-              <span style="font-size:0.75rem;color:var(--text-muted)">経費率: ${formatExpenseRatio(t.expenseRatio)}</span>
-            </div>
-          </div>
-        `
-          )
-          .join("")}
-      </div>
-    </div>
-  `
-    )
-    .join("");
-}
-
-// ===== Render Compare View =====
-function renderCompareView() {
-  const filtered = getFilteredTickers();
-  // Group by index, only show indices with multiple leverage levels
-  const groups = new Map();
-  filtered.forEach((t) => {
-    if (!groups.has(t.index)) groups.set(t.index, []);
-    groups.get(t.index).push(t);
-  });
-
-  const maxExpense = Math.max(...filtered.map((t) => t.expenseRatio));
-
-  resultCount.textContent = `${filtered.length} / ${ETF_TICKERS.length} 件表示`;
-
-  const comparableGroups = Array.from(groups.entries()).filter(
-    ([, tickers]) => {
-      const leverages = new Set(tickers.map((t) => Math.abs(t.leverage)));
-      return leverages.size > 1;
-    }
-  );
-
-  compareContainer.innerHTML = comparableGroups
-    .map(
-      ([indexName, tickers]) => `
-    <div class="compare-section">
-      <h3 class="compare-title">${indexName} ${categoryBadge(tickers[0].category)}</h3>
-      <div class="compare-grid">
-        ${tickers
-          .sort((a, b) => a.leverage - b.leverage)
-          .map(
-            (t) => `
-          <div class="compare-card">
-            <div class="card-symbol">${t.symbol}</div>
-            <div class="card-leverage">${leverageBadge(t.leverage)}</div>
-            <div class="card-name">${t.name}</div>
-            <div class="card-issuer">${t.issuer}</div>
-            <div class="card-expense">経費率: ${formatExpenseRatio(t.expenseRatio)}</div>
-            <div class="compare-bar-container">
-              <div class="compare-bar">
-                <div class="compare-bar-fill" style="width: ${(t.expenseRatio / maxExpense) * 100}%; background: ${t.leverage < 0 ? "var(--red)" : t.leverage === 1 ? "var(--green)" : t.leverage === 2 ? "var(--orange)" : "var(--purple)"}"></div>
-              </div>
-            </div>
-          </div>
-        `
-          )
-          .join("")}
-      </div>
-    </div>
-  `
-    )
-    .join("");
-
-  if (comparableGroups.length === 0) {
-    compareContainer.innerHTML = `<p style="text-align:center;color:var(--text-muted);padding:2rem;">フィルタ条件に一致するレバレッジ比較グループがありません。</p>`;
-  }
-}
-
-// ===== View Switching =====
-function switchView(view) {
-  currentView = view;
-  viewBtns.forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.view === view);
-  });
-
-  document.getElementById("tableView").classList.toggle("hidden", view !== "table");
-  document.getElementById("groupView").classList.toggle("hidden", view !== "group");
-  document.getElementById("compareView").classList.toggle("hidden", view !== "compare");
-
-  renderCurrentView();
-}
-
-function renderCurrentView() {
-  if (currentView === "table") renderTable();
-  else if (currentView === "group") renderGroupView();
-  else if (currentView === "compare") renderCompareView();
+// ===== Set initial date range from data =====
+function setDateRange() {
+  const data = INDEX_DATA_MAP.sp500();
+  document.getElementById("startDate").value = "2000-01-03";
+  document.getElementById("endDate").value = data[data.length - 1][0];
 }
 
 // ===== Event Bindings =====
 function bindEvents() {
-  searchInput.addEventListener("input", renderCurrentView);
-  categoryFilter.addEventListener("change", renderCurrentView);
-  indexFilter.addEventListener("change", renderCurrentView);
-  leverageFilter.addEventListener("change", renderCurrentView);
+  // Run backtest
+  document.getElementById("runBacktest").addEventListener("click", executeBacktest);
 
-  resetBtn.addEventListener("click", () => {
-    searchInput.value = "";
-    categoryFilter.value = "all";
-    indexFilter.value = "all";
-    leverageFilter.value = "all";
-    renderCurrentView();
-  });
+  // Mode toggle
+  document.getElementById("modeBasic").addEventListener("click", () => setMode("basic"));
+  document.getElementById("modeExpert").addEventListener("click", () => setMode("expert"));
 
-  // Sort headers
-  document.querySelectorAll("#etfTable th.sortable").forEach((th) => {
-    th.addEventListener("click", () => {
-      const key = th.dataset.sort;
-      if (currentSort.key === key) {
-        currentSort.dir = currentSort.dir === "asc" ? "desc" : "asc";
-      } else {
-        currentSort.key = key;
-        currentSort.dir = "asc";
-      }
-      renderTable();
+  // Investment type toggle
+  document.querySelectorAll('input[name="investType"]').forEach((r) => {
+    r.addEventListener("change", () => {
+      document.getElementById("dcaSettings").classList.toggle("hidden", r.value !== "dca" || !r.checked);
     });
   });
 
-  // View toggle
-  viewBtns.forEach((btn) => {
-    btn.addEventListener("click", () => switchView(btn.dataset.view));
+  // Crisis presets
+  document.getElementById("crisisPreset").addEventListener("change", (e) => {
+    const preset = CRISIS_PRESETS[e.target.value];
+    if (preset) {
+      const data = INDEX_DATA_MAP[document.getElementById("indexSelect").value]();
+      const lastDate = data[data.length - 1][0];
+      document.getElementById("startDate").value = preset.start;
+      document.getElementById("endDate").value = preset.end > lastDate ? lastDate : preset.end;
+    } else if (e.target.value === "recent10" || e.target.value === "recent5") {
+      const data = INDEX_DATA_MAP[document.getElementById("indexSelect").value]();
+      const lastDate = data[data.length - 1][0];
+      const years = e.target.value === "recent10" ? 10 : 5;
+      const startYear = parseInt(lastDate.substring(0, 4)) - years;
+      document.getElementById("startDate").value = `${startYear}${lastDate.substring(4)}`;
+      document.getElementById("endDate").value = lastDate;
+    }
   });
+
+  // Expert test type
+  document.getElementById("expertTestType").addEventListener("change", (e) => {
+    document.getElementById("rollingSettings").classList.toggle("hidden", e.target.value !== "rolling");
+    document.getElementById("fixedSettings").classList.toggle("hidden", e.target.value !== "fixed");
+  });
+
+  // Chart scale
+  document.getElementById("scaleLinear").addEventListener("click", () => setChartScale("linear"));
+  document.getElementById("scaleLog").addEventListener("click", () => setChartScale("logarithmic"));
+}
+
+// ===== Mode Toggle =====
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById("modeBasic").classList.toggle("active", mode === "basic");
+  document.getElementById("modeExpert").classList.toggle("active", mode === "expert");
+  document.getElementById("expertSettings").classList.toggle("hidden", mode !== "expert");
+}
+
+// ===== Chart Scale =====
+function setChartScale(scale) {
+  document.getElementById("scaleLinear").classList.toggle("active", scale === "linear");
+  document.getElementById("scaleLog").classList.toggle("active", scale === "logarithmic");
+  if (mainChart) {
+    mainChart.options.scales.y.type = scale;
+    mainChart.update();
+  }
+}
+
+// ===== Execute Backtest =====
+function executeBacktest() {
+  const indexKey = document.getElementById("indexSelect").value;
+  const leverageVal = document.querySelector('input[name="leverage"]:checked').value;
+  const startDate = document.getElementById("startDate").value;
+  const endDate = document.getElementById("endDate").value;
+
+  const opts = {
+    initialAmount: parseFloat(document.getElementById("initialAmount").value) || 10000,
+    investType: document.querySelector('input[name="investType"]:checked').value,
+    dcaAmount: parseFloat(document.getElementById("dcaAmount").value) || 500,
+    dcaFrequency: document.getElementById("dcaFrequency").value,
+    dcaIncrease: parseFloat(document.getElementById("dcaIncrease").value) || 0,
+    includeExpense: document.getElementById("includeExpense").checked,
+  };
+
+  const data = getIndexData(indexKey, startDate, endDate);
+  if (data.length < 10) {
+    alert("選択した期間のデータが不足しています。期間を調整してください。");
+    return;
+  }
+
+  const leverages = leverageVal === "all" ? [1, 2, 3] : [parseInt(leverageVal)];
+
+  // Check mode
+  if (currentMode === "expert") {
+    const testType = document.getElementById("expertTestType").value;
+    if (testType === "rolling") {
+      executeRollingBacktest(data, leverages, opts);
+      return;
+    }
+    if (testType === "fixed") {
+      const fixedYears = parseInt(document.getElementById("fixedYears").value) || 10;
+      const fixedDays = fixedYears * 252;
+      if (data.length > fixedDays) {
+        const trimmedData = data.slice(0, fixedDays);
+        executeStandardBacktest(trimmedData, leverages, opts, indexKey);
+        return;
+      }
+    }
+  }
+
+  executeStandardBacktest(data, leverages, opts, indexKey);
+}
+
+// ===== Standard Backtest =====
+function executeStandardBacktest(data, leverages, opts, indexKey) {
+  const results = leverages.map((lev) => runBacktest(data, lev, opts));
+  currentResults = results;
+
+  // Show results
+  document.getElementById("resultsPlaceholder").classList.add("hidden");
+  document.getElementById("resultsContent").classList.remove("hidden");
+  document.getElementById("rollingSection").classList.add("hidden");
+  document.getElementById("drawdownSection").classList.remove("hidden");
+  document.getElementById("yearlySection").classList.remove("hidden");
+
+  renderStatsCards(results);
+  renderMainChart(results, INDEX_LABELS[indexKey] || indexKey);
+  renderDrawdownChart(results);
+  renderStatsTable(results);
+  renderYearlyTable(results);
+}
+
+// ===== Rolling Backtest =====
+function executeRollingBacktest(data, leverages, opts) {
+  const rollingYears = parseInt(document.getElementById("rollingYears").value) || 5;
+  const rollingResults = leverages.map((lev) => runRollingBacktest(data, lev, rollingYears, opts));
+
+  document.getElementById("resultsPlaceholder").classList.add("hidden");
+  document.getElementById("resultsContent").classList.remove("hidden");
+  document.getElementById("drawdownSection").classList.add("hidden");
+  document.getElementById("yearlySection").classList.add("hidden");
+  document.getElementById("rollingSection").classList.remove("hidden");
+
+  renderRollingStatsCards(rollingResults);
+  renderRollingChart(rollingResults, rollingYears);
+  renderRollingStatsTable(rollingResults);
+
+  // Also run a full period backtest for the main chart
+  const fullResults = leverages.map((lev) => runBacktest(data, lev, opts));
+  renderMainChart(fullResults, `全期間 (ローリング${rollingYears}年参考)`);
+}
+
+// ===== Render Stats Cards =====
+function renderStatsCards(results) {
+  const container = document.getElementById("statsCards");
+  const primary = results[results.length - 1]; // highest leverage
+
+  const cards = [];
+  results.forEach((r) => {
+    cards.push(
+      { label: `最終資産 (${r.leverage}x)`, value: formatMoney(r.finalValue), cls: r.totalReturn >= 0 ? "positive" : "negative" },
+    );
+  });
+  cards.push(
+    { label: "総投資額", value: formatMoney(primary.totalInvested), cls: "" },
+  );
+  results.forEach((r) => {
+    cards.push(
+      { label: `CAGR (${r.leverage}x)`, value: formatPct(r.cagr), cls: r.cagr >= 0 ? "positive" : "negative" },
+    );
+  });
+  results.forEach((r) => {
+    cards.push(
+      { label: `MDD (${r.leverage}x)`, value: formatPct(r.maxDrawdown), cls: "negative" },
+    );
+  });
+
+  container.innerHTML = cards
+    .map((c) => `
+      <div class="stat-card">
+        <div class="stat-value ${c.cls}">${c.value}</div>
+        <div class="stat-label">${c.label}</div>
+      </div>
+    `).join("");
+}
+
+// ===== Render Main Chart =====
+function renderMainChart(results, title) {
+  const ctx = document.getElementById("mainChart").getContext("2d");
+  if (mainChart) mainChart.destroy();
+
+  document.getElementById("chartTitle").textContent = `資産推移 - ${title}`;
+
+  // Downsample for performance (max ~1000 points per series)
+  const maxPoints = 1000;
+
+  const datasets = results.map((r) => {
+    const step = Math.max(1, Math.floor(r.dates.length / maxPoints));
+    const sampledDates = [];
+    const sampledValues = [];
+    for (let i = 0; i < r.dates.length; i += step) {
+      sampledDates.push(r.dates[i]);
+      sampledValues.push(r.values[i]);
+    }
+    // Always include last point
+    if (sampledDates[sampledDates.length - 1] !== r.dates[r.dates.length - 1]) {
+      sampledDates.push(r.dates[r.dates.length - 1]);
+      sampledValues.push(r.values[r.values.length - 1]);
+    }
+
+    const color = LEVERAGE_COLORS[r.leverage];
+    return {
+      label: `${r.leverage}x レバレッジ`,
+      data: sampledDates.map((d, i) => ({ x: d, y: sampledValues[i] })),
+      borderColor: color.line,
+      backgroundColor: color.bg,
+      borderWidth: 2,
+      pointRadius: 0,
+      fill: results.length === 1,
+      tension: 0.1,
+    };
+  });
+
+  mainChart = new Chart(ctx, {
+    type: "line",
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${formatMoney(ctx.parsed.y)}`,
+          },
+        },
+        legend: { labels: { color: "#e4e6eb" } },
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "year" },
+          ticks: { color: "#8b8fa3" },
+          grid: { color: "rgba(255,255,255,0.05)" },
+        },
+        y: {
+          type: "linear",
+          ticks: {
+            color: "#8b8fa3",
+            callback: (v) => formatMoney(v),
+          },
+          grid: { color: "rgba(255,255,255,0.05)" },
+        },
+      },
+    },
+  });
+}
+
+// ===== Render Drawdown Chart =====
+function renderDrawdownChart(results) {
+  const ctx = document.getElementById("drawdownChart").getContext("2d");
+  if (drawdownChart) drawdownChart.destroy();
+
+  const maxPoints = 1000;
+
+  const datasets = results.map((r) => {
+    const step = Math.max(1, Math.floor(r.dates.length / maxPoints));
+    const sampled = [];
+    for (let i = 0; i < r.dates.length; i += step) {
+      sampled.push({ x: r.dates[i], y: r.drawdowns[i] * 100 });
+    }
+
+    const color = LEVERAGE_COLORS[r.leverage];
+    return {
+      label: `${r.leverage}x ドローダウン`,
+      data: sampled,
+      borderColor: color.line,
+      backgroundColor: color.bg,
+      borderWidth: 1.5,
+      pointRadius: 0,
+      fill: true,
+      tension: 0.1,
+    };
+  });
+
+  drawdownChart = new Chart(ctx, {
+    type: "line",
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`,
+          },
+        },
+        legend: { labels: { color: "#e4e6eb" } },
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "year" },
+          ticks: { color: "#8b8fa3" },
+          grid: { color: "rgba(255,255,255,0.05)" },
+        },
+        y: {
+          ticks: {
+            color: "#8b8fa3",
+            callback: (v) => v.toFixed(0) + "%",
+          },
+          grid: { color: "rgba(255,255,255,0.05)" },
+        },
+      },
+    },
+  });
+}
+
+// ===== Render Rolling Chart =====
+function renderRollingChart(rollingResults, rollingYears) {
+  const ctx = document.getElementById("rollingChart").getContext("2d");
+  if (rollingChart) rollingChart.destroy();
+
+  document.getElementById("rollingTitle").textContent = `ローリング ${rollingYears}年 CAGR`;
+
+  const datasets = rollingResults.map((rr) => {
+    const color = LEVERAGE_COLORS[rr.leverage];
+    // Downsample
+    const step = Math.max(1, Math.floor(rr.results.length / 500));
+    const sampled = [];
+    for (let i = 0; i < rr.results.length; i += step) {
+      sampled.push({ x: rr.results[i].startDate, y: rr.results[i].cagr * 100 });
+    }
+    return {
+      label: `${rr.leverage}x CAGR`,
+      data: sampled,
+      borderColor: color.line,
+      backgroundColor: color.bg,
+      borderWidth: 1.5,
+      pointRadius: 0,
+      fill: false,
+      tension: 0.2,
+    };
+  });
+
+  // Add zero line
+  rollingChart = new Chart(ctx, {
+    type: "line",
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`,
+          },
+        },
+        legend: { labels: { color: "#e4e6eb" } },
+        annotation: {
+          annotations: {
+            zeroLine: { type: "line", yMin: 0, yMax: 0, borderColor: "rgba(255,255,255,0.3)", borderWidth: 1 },
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "year" },
+          ticks: { color: "#8b8fa3" },
+          grid: { color: "rgba(255,255,255,0.05)" },
+        },
+        y: {
+          ticks: {
+            color: "#8b8fa3",
+            callback: (v) => v.toFixed(0) + "%",
+          },
+          grid: { color: "rgba(255,255,255,0.05)" },
+        },
+      },
+    },
+  });
+}
+
+// ===== Render Stats Table =====
+function renderStatsTable(results) {
+  const head = document.getElementById("statsTableHead");
+  const body = document.getElementById("statsTableBody");
+
+  head.innerHTML = `<th>指標</th>` + results.map((r) => `<th>${r.leverage}x</th>`).join("");
+
+  const rows = [
+    { label: "最終資産", fn: (r) => formatMoney(r.finalValue) },
+    { label: "総投資額", fn: (r) => formatMoney(r.totalInvested) },
+    { label: "総リターン", fn: (r) => formatPct(r.totalReturn) },
+    { label: "CAGR", fn: (r) => formatPct(r.cagr) },
+    { label: "MDD", fn: (r) => formatPct(r.maxDrawdown) },
+    { label: "ボラティリティ", fn: (r) => formatPct(r.volatility) },
+    { label: "シャープレシオ", fn: (r) => r.sharpe.toFixed(3) },
+  ];
+
+  body.innerHTML = rows
+    .map((row) => `
+      <tr>
+        <td class="row-label">${row.label}</td>
+        ${results.map((r) => `<td>${row.fn(r)}</td>`).join("")}
+      </tr>
+    `).join("");
+}
+
+// ===== Render Yearly Returns Table =====
+function renderYearlyTable(results) {
+  const head = document.getElementById("yearlyTableHead");
+  const body = document.getElementById("yearlyTableBody");
+
+  head.innerHTML = `<th>年</th>` + results.map((r) => `<th>${r.leverage}x</th>`).join("");
+
+  // Collect all years
+  const allYears = new Set();
+  results.forEach((r) => Object.keys(r.yearlyReturns).forEach((y) => allYears.add(y)));
+  const years = [...allYears].sort();
+
+  body.innerHTML = years
+    .map((year) => `
+      <tr>
+        <td class="row-label">${year}</td>
+        ${results.map((r) => {
+          const val = r.yearlyReturns[year];
+          if (val === undefined) return `<td>-</td>`;
+          const cls = val >= 0 ? "positive" : "negative";
+          return `<td class="${cls}">${formatPct(val)}</td>`;
+        }).join("")}
+      </tr>
+    `).join("");
+}
+
+// ===== Rolling Stats Cards =====
+function renderRollingStatsCards(rollingResults) {
+  const container = document.getElementById("statsCards");
+  const cards = [];
+
+  rollingResults.forEach((rr) => {
+    cards.push(
+      { label: `平均CAGR (${rr.leverage}x)`, value: formatPct(rr.stats.avgCAGR), cls: rr.stats.avgCAGR >= 0 ? "positive" : "negative" },
+      { label: `最良CAGR (${rr.leverage}x)`, value: formatPct(rr.stats.maxCAGR), cls: "positive" },
+      { label: `最悪CAGR (${rr.leverage}x)`, value: formatPct(rr.stats.minCAGR), cls: rr.stats.minCAGR >= 0 ? "positive" : "negative" },
+      { label: `プラス確率 (${rr.leverage}x)`, value: formatPct(rr.stats.positiveRate), cls: rr.stats.positiveRate >= 0.5 ? "positive" : "negative" },
+    );
+  });
+
+  container.innerHTML = cards
+    .map((c) => `
+      <div class="stat-card">
+        <div class="stat-value ${c.cls}">${c.value}</div>
+        <div class="stat-label">${c.label}</div>
+      </div>
+    `).join("");
+}
+
+// ===== Rolling Stats Table =====
+function renderRollingStatsTable(rollingResults) {
+  const head = document.getElementById("statsTableHead");
+  const body = document.getElementById("statsTableBody");
+
+  head.innerHTML = `<th>指標</th>` + rollingResults.map((r) => `<th>${r.leverage}x</th>`).join("");
+
+  const rows = [
+    { label: "テスト回数", fn: (r) => r.stats.count },
+    { label: "平均CAGR", fn: (r) => formatPct(r.stats.avgCAGR) },
+    { label: "中央値CAGR", fn: (r) => formatPct(r.stats.medianCAGR) },
+    { label: "最良CAGR", fn: (r) => formatPct(r.stats.maxCAGR) },
+    { label: "最悪CAGR", fn: (r) => formatPct(r.stats.minCAGR) },
+    { label: "プラス確率", fn: (r) => formatPct(r.stats.positiveRate) },
+    { label: "平均MDD", fn: (r) => formatPct(r.stats.avgMDD) },
+    { label: "最悪MDD", fn: (r) => formatPct(r.stats.worstMDD) },
+  ];
+
+  body.innerHTML = rows
+    .map((row) => `
+      <tr>
+        <td class="row-label">${row.label}</td>
+        ${rollingResults.map((r) => `<td>${row.fn(r)}</td>`).join("")}
+      </tr>
+    `).join("");
 }
