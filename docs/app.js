@@ -167,13 +167,18 @@ function executeBacktest() {
   const leverageVal = document.querySelector('input[name="leverage"]:checked').value;
 
   const opts = {
-    initialAmount: parseFloat(document.getElementById("initialAmount").value) || 10000,
+    initialAmount: parseFloat(document.getElementById("initialAmount").value) || 0,
     investType: document.querySelector('input[name="investType"]:checked').value,
-    dcaAmount: parseFloat(document.getElementById("dcaAmount").value) || 500,
+    dcaAmount: parseFloat(document.getElementById("dcaAmount").value) || 0,
     dcaFrequency: document.getElementById("dcaFrequency").value,
     dcaIncrease: parseFloat(document.getElementById("dcaIncrease").value) || 0,
     includeExpense: document.getElementById("includeExpense").checked,
   };
+
+  if (opts.initialAmount <= 0) {
+    alert("初期投資額を入力してください。");
+    return;
+  }
 
   const leverages = leverageVal === "all" ? [1, 2, 3] : [parseInt(leverageVal)];
 
