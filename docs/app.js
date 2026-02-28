@@ -5,6 +5,18 @@ let rollingChart = null;
 let currentResults = null;
 let currentMode = "basic";
 
+// ===== Tooltip definitions for technical terms =====
+const TERM_TIPS = {
+  "CAGR": "年平均成長率。毎年平均何%ずつ増えたかを示す指標",
+  "MDD": "最大下落率。最高値から最も大きく下がった時の下落幅",
+  "ボラティリティ": "価格変動の大きさ。数値が大きいほど値動きが激しくリスクが高い",
+  "シャープレシオ": "リスクに対するリターンの効率性。数値が高いほどリスクの割にリターンが良い",
+};
+function tip(term) {
+  const t = TERM_TIPS[term];
+  return t ? ` <span class="tip" data-tip="${t}">&#9432;</span>` : "";
+}
+
 // ===== DOM Ready =====
 document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
@@ -47,6 +59,7 @@ function bindEvents() {
   document.getElementById("runBacktest").addEventListener("click", executeBacktest);
 
   // Mode toggle
+  document.getElementById("modeBeginner").addEventListener("click", () => setMode("beginner"));
   document.getElementById("modeBasic").addEventListener("click", () => setMode("basic"));
   document.getElementById("modeExpert").addEventListener("click", () => setMode("expert"));
 
@@ -83,7 +96,6 @@ function bindEvents() {
   // Expert test type
   document.getElementById("expertTestType").addEventListener("change", (e) => {
     document.getElementById("rollingSettings").classList.toggle("hidden", e.target.value !== "rolling");
-    document.getElementById("fixedSettings").classList.toggle("hidden", e.target.value !== "fixed");
   });
 
   // Chart scale
@@ -94,8 +106,12 @@ function bindEvents() {
 // ===== Mode Toggle =====
 function setMode(mode) {
   currentMode = mode;
+  document.getElementById("modeBeginner").classList.toggle("active", mode === "beginner");
   document.getElementById("modeBasic").classList.toggle("active", mode === "basic");
   document.getElementById("modeExpert").classList.toggle("active", mode === "expert");
+  document.getElementById("beginnerSettings").classList.toggle("hidden", mode !== "beginner");
+  document.getElementById("periodSection").classList.toggle("hidden", mode === "beginner");
+  document.getElementById("crisisSection").classList.toggle("hidden", mode === "beginner");
   document.getElementById("expertSettings").classList.toggle("hidden", mode !== "expert");
 }
 
@@ -113,8 +129,6 @@ function setChartScale(scale) {
 function executeBacktest() {
   const indexKey = document.getElementById("indexSelect").value;
   const leverageVal = document.querySelector('input[name="leverage"]:checked').value;
-  const startDate = document.getElementById("startDate").value;
-  const endDate = document.getElementById("endDate").value;
 
   const opts = {
     initialAmount: parseFloat(document.getElementById("initialAmount").value) || 10000,
@@ -125,29 +139,36 @@ function executeBacktest() {
     includeExpense: document.getElementById("includeExpense").checked,
   };
 
+  const leverages = leverageVal === "all" ? [1, 2, 3] : [parseInt(leverageVal)];
+
+  // Beginner mode: use most recent N years of full data
+  if (currentMode === "beginner") {
+    const fullData = INDEX_DATA_MAP[indexKey]();
+    const years = parseInt(document.getElementById("beginnerYears").value) || 10;
+    const days = years * 252;
+    const data = fullData.length > days ? fullData.slice(fullData.length - days) : fullData;
+    if (data.length < 10) {
+      alert("データが不足しています。");
+      return;
+    }
+    executeStandardBacktest(data, leverages, opts, indexKey);
+    return;
+  }
+
+  const startDate = document.getElementById("startDate").value;
+  const endDate = document.getElementById("endDate").value;
   const data = getIndexData(indexKey, startDate, endDate);
   if (data.length < 10) {
     alert("選択した期間のデータが不足しています。期間を調整してください。");
     return;
   }
 
-  const leverages = leverageVal === "all" ? [1, 2, 3] : [parseInt(leverageVal)];
-
-  // Check mode
+  // Expert mode
   if (currentMode === "expert") {
     const testType = document.getElementById("expertTestType").value;
     if (testType === "rolling") {
       executeRollingBacktest(data, leverages, opts);
       return;
-    }
-    if (testType === "fixed") {
-      const fixedYears = parseInt(document.getElementById("fixedYears").value) || 10;
-      const fixedDays = fixedYears * 252;
-      if (data.length > fixedDays) {
-        const trimmedData = data.slice(0, fixedDays);
-        executeStandardBacktest(trimmedData, leverages, opts, indexKey);
-        return;
-      }
     }
   }
 
@@ -209,12 +230,12 @@ function renderStatsCards(results) {
   );
   results.forEach((r) => {
     cards.push(
-      { label: `CAGR (${r.leverage}x)`, value: formatPct(r.cagr), cls: r.cagr >= 0 ? "positive" : "negative" },
+      { label: `CAGR${tip("CAGR")} (${r.leverage}x)`, value: formatPct(r.cagr), cls: r.cagr >= 0 ? "positive" : "negative" },
     );
   });
   results.forEach((r) => {
     cards.push(
-      { label: `MDD (${r.leverage}x)`, value: formatPct(r.maxDrawdown), cls: "negative" },
+      { label: `MDD${tip("MDD")} (${r.leverage}x)`, value: formatPct(r.maxDrawdown), cls: "negative" },
     );
   });
 
@@ -438,10 +459,10 @@ function renderStatsTable(results) {
     { label: "最終資産", fn: (r) => formatMoney(r.finalValue) },
     { label: "総投資額", fn: (r) => formatMoney(r.totalInvested) },
     { label: "総リターン", fn: (r) => formatPct(r.totalReturn) },
-    { label: "CAGR", fn: (r) => formatPct(r.cagr) },
-    { label: "MDD", fn: (r) => formatPct(r.maxDrawdown) },
-    { label: "ボラティリティ", fn: (r) => formatPct(r.volatility) },
-    { label: "シャープレシオ", fn: (r) => r.sharpe.toFixed(3) },
+    { label: `CAGR${tip("CAGR")}`, fn: (r) => formatPct(r.cagr) },
+    { label: `MDD${tip("MDD")}`, fn: (r) => formatPct(r.maxDrawdown) },
+    { label: `ボラティリティ${tip("ボラティリティ")}`, fn: (r) => formatPct(r.volatility) },
+    { label: `シャープレシオ${tip("シャープレシオ")}`, fn: (r) => r.sharpe.toFixed(3) },
   ];
 
   body.innerHTML = rows
@@ -486,9 +507,9 @@ function renderRollingStatsCards(rollingResults) {
 
   rollingResults.forEach((rr) => {
     cards.push(
-      { label: `平均CAGR (${rr.leverage}x)`, value: formatPct(rr.stats.avgCAGR), cls: rr.stats.avgCAGR >= 0 ? "positive" : "negative" },
-      { label: `最良CAGR (${rr.leverage}x)`, value: formatPct(rr.stats.maxCAGR), cls: "positive" },
-      { label: `最悪CAGR (${rr.leverage}x)`, value: formatPct(rr.stats.minCAGR), cls: rr.stats.minCAGR >= 0 ? "positive" : "negative" },
+      { label: `平均CAGR${tip("CAGR")} (${rr.leverage}x)`, value: formatPct(rr.stats.avgCAGR), cls: rr.stats.avgCAGR >= 0 ? "positive" : "negative" },
+      { label: `最良CAGR${tip("CAGR")} (${rr.leverage}x)`, value: formatPct(rr.stats.maxCAGR), cls: "positive" },
+      { label: `最悪CAGR${tip("CAGR")} (${rr.leverage}x)`, value: formatPct(rr.stats.minCAGR), cls: rr.stats.minCAGR >= 0 ? "positive" : "negative" },
       { label: `プラス確率 (${rr.leverage}x)`, value: formatPct(rr.stats.positiveRate), cls: rr.stats.positiveRate >= 0.5 ? "positive" : "negative" },
     );
   });
@@ -511,13 +532,13 @@ function renderRollingStatsTable(rollingResults) {
 
   const rows = [
     { label: "テスト回数", fn: (r) => r.stats.count },
-    { label: "平均CAGR", fn: (r) => formatPct(r.stats.avgCAGR) },
-    { label: "中央値CAGR", fn: (r) => formatPct(r.stats.medianCAGR) },
-    { label: "最良CAGR", fn: (r) => formatPct(r.stats.maxCAGR) },
-    { label: "最悪CAGR", fn: (r) => formatPct(r.stats.minCAGR) },
+    { label: `平均CAGR${tip("CAGR")}`, fn: (r) => formatPct(r.stats.avgCAGR) },
+    { label: `中央値CAGR${tip("CAGR")}`, fn: (r) => formatPct(r.stats.medianCAGR) },
+    { label: `最良CAGR${tip("CAGR")}`, fn: (r) => formatPct(r.stats.maxCAGR) },
+    { label: `最悪CAGR${tip("CAGR")}`, fn: (r) => formatPct(r.stats.minCAGR) },
     { label: "プラス確率", fn: (r) => formatPct(r.stats.positiveRate) },
-    { label: "平均MDD", fn: (r) => formatPct(r.stats.avgMDD) },
-    { label: "最悪MDD", fn: (r) => formatPct(r.stats.worstMDD) },
+    { label: `平均MDD${tip("MDD")}`, fn: (r) => formatPct(r.stats.avgMDD) },
+    { label: `最悪MDD${tip("MDD")}`, fn: (r) => formatPct(r.stats.worstMDD) },
   ];
 
   body.innerHTML = rows

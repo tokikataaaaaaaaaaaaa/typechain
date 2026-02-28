@@ -298,6 +298,41 @@ header {
 .stats-table td.negative { color: var(--red); }
 .stats-table tbody tr:hover { background: var(--bg-hover); }
 
+/* ===== Tooltips ===== */
+.tip {
+  position: relative;
+  cursor: help;
+  color: var(--primary);
+  font-size: 0.85em;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.tip:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2a2e3d;
+  color: var(--text);
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  white-space: normal;
+  width: 220px;
+  z-index: 100;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  pointer-events: none;
+}
+.setting-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.4rem;
+}
+
 /* ===== Footer ===== */
 footer {
   text-align: center;

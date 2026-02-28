@@ -21,8 +21,9 @@
     <aside class="settings-panel" id="settingsPanel">
       <!-- Mode Toggle -->
       <div class="mode-toggle">
-        <button class="mode-btn active" data-mode="basic" id="modeBasic">基本モード</button>
-        <button class="mode-btn" data-mode="expert" id="modeExpert">専門家モード</button>
+        <button class="mode-btn" data-mode="beginner" id="modeBeginner">初心者</button>
+        <button class="mode-btn active" data-mode="basic" id="modeBasic">基本</button>
+        <button class="mode-btn" data-mode="expert" id="modeExpert">専門家</button>
       </div>
 
       <!-- Index Selection -->
@@ -37,7 +38,7 @@
 
       <!-- Leverage Selection -->
       <div class="setting-section">
-        <label class="setting-label">レバレッジ倍率</label>
+        <label class="setting-label">レバレッジ倍率 <span class="tip" data-tip="借入を使って投資額を2倍・3倍にする仕組み。リターンもリスクも倍になります">&#9432;</span></label>
         <div class="leverage-options">
           <label class="radio-label"><input type="radio" name="leverage" value="1" /> 1x</label>
           <label class="radio-label"><input type="radio" name="leverage" value="2" /> 2x</label>
@@ -50,8 +51,8 @@
       <div class="setting-section">
         <label class="setting-label">投資方式</label>
         <div class="leverage-options">
-          <label class="radio-label"><input type="radio" name="investType" value="lump" checked /> 一括投資</label>
-          <label class="radio-label"><input type="radio" name="investType" value="dca" /> 積立投資</label>
+          <label class="radio-label"><input type="radio" name="investType" value="lump" checked /> 一括投資 <span class="tip" data-tip="最初に全額を一度に投資する方法">&#9432;</span></label>
+          <label class="radio-label"><input type="radio" name="investType" value="dca" /> 積立投資 <span class="tip" data-tip="毎月・毎週など定期的に少しずつ投資する方法（ドルコスト平均法）">&#9432;</span></label>
         </div>
       </div>
 
@@ -75,8 +76,15 @@
         <input type="number" id="dcaIncrease" value="0" min="0" max="50" step="1" />
       </div>
 
-      <!-- Period -->
-      <div class="setting-section">
+      <!-- Beginner Mode: Fixed Period -->
+      <div class="setting-section hidden" id="beginnerSettings">
+        <label class="setting-label">投資期間 (年)</label>
+        <input type="number" id="beginnerYears" value="10" min="1" max="30" step="1" />
+        <p class="setting-hint">直近N年間のバックテストを自動で実行します</p>
+      </div>
+
+      <!-- Period (hidden in beginner mode) -->
+      <div class="setting-section" id="periodSection">
         <label class="setting-label">投資期間</label>
         <div class="date-row">
           <div>
@@ -90,8 +98,8 @@
         </div>
       </div>
 
-      <!-- Crisis Presets -->
-      <div class="setting-section">
+      <!-- Crisis Presets (hidden in beginner mode) -->
+      <div class="setting-section" id="crisisSection">
         <label class="setting-label">危機期間プリセット</label>
         <select id="crisisPreset">
           <option value="">カスタム</option>
@@ -110,7 +118,7 @@
       <div class="setting-section">
         <label class="checkbox-label">
           <input type="checkbox" id="includeExpense" checked />
-          経費率を反映（1x:0.03%, 2x:0.90%, 3x:0.95%）
+          経費率を反映 <span class="tip" data-tip="ETFの年間運用コスト。レバレッジが高いほど経費率も高くなります">&#9432;</span>（1x:0.03%, 2x:0.90%, 3x:0.95%）
         </label>
       </div>
 
@@ -120,17 +128,12 @@
           <label class="setting-label">テスト方式</label>
           <select id="expertTestType">
             <option value="single">単一期間テスト</option>
-            <option value="fixed">固定期間テスト</option>
             <option value="rolling">ローリングテスト</option>
           </select>
         </div>
         <div class="setting-section rolling-settings hidden" id="rollingSettings">
-          <label class="setting-label">ローリング期間 (年)</label>
+          <label class="setting-label">ローリング期間 (年) <span class="tip" data-tip="開始時期をずらしながら何百回もシミュレーションし、どの時期に始めても平均どうなるかを調べます">&#9432;</span></label>
           <input type="number" id="rollingYears" value="5" min="1" max="30" step="1" />
-        </div>
-        <div class="setting-section fixed-settings hidden" id="fixedSettings">
-          <label class="setting-label">固定投資期間 (年)</label>
-          <input type="number" id="fixedYears" value="10" min="1" max="30" step="1" />
         </div>
       </div>
 
@@ -163,7 +166,7 @@
         </div>
 
         <div class="chart-section" id="drawdownSection">
-          <div class="chart-header"><h3>ドローダウン推移</h3></div>
+          <div class="chart-header"><h3>ドローダウン推移 <span class="tip" data-tip="最高値からどれだけ下がったかの推移。0%が最高値、マイナスが大きいほど下落が深い">&#9432;</span></h3></div>
           <div class="chart-wrapper">
             <canvas id="drawdownChart"></canvas>
           </div>
