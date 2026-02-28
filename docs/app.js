@@ -27,7 +27,10 @@ document.addEventListener("DOMContentLoaded", () => {
 function setDateRange() {
   updateDateConstraints();
   const data = INDEX_DATA_MAP[document.getElementById("indexSelect").value]();
-  document.getElementById("startDate").value = "2000-01-03";
+  const dataStart = data[0][0];
+  const defaultStart = "2000-01-03";
+  // Use data start if default is before available data
+  document.getElementById("startDate").value = defaultStart < dataStart ? dataStart : defaultStart;
   document.getElementById("endDate").value = data[data.length - 1][0];
 }
 
@@ -80,8 +83,10 @@ function bindEvents() {
     const preset = CRISIS_PRESETS[e.target.value];
     if (preset) {
       const data = INDEX_DATA_MAP[document.getElementById("indexSelect").value]();
+      const firstDate = data[0][0];
       const lastDate = data[data.length - 1][0];
-      document.getElementById("startDate").value = preset.start;
+      // Clamp preset start to data range
+      document.getElementById("startDate").value = preset.start < firstDate ? firstDate : preset.start;
       document.getElementById("endDate").value = preset.end > lastDate ? lastDate : preset.end;
     } else if (e.target.value === "recent10" || e.target.value === "recent5") {
       const data = INDEX_DATA_MAP[document.getElementById("indexSelect").value]();
