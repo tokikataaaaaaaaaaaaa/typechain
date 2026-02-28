@@ -13,9 +13,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ===== Set initial date range from data =====
 function setDateRange() {
-  const data = INDEX_DATA_MAP.sp500();
+  updateDateConstraints();
+  const data = INDEX_DATA_MAP[document.getElementById("indexSelect").value]();
   document.getElementById("startDate").value = "2000-01-03";
   document.getElementById("endDate").value = data[data.length - 1][0];
+}
+
+// ===== Update date input min/max based on selected index data =====
+function updateDateConstraints() {
+  const indexKey = document.getElementById("indexSelect").value;
+  const data = INDEX_DATA_MAP[indexKey]();
+  const minDate = data[0][0];
+  const maxDate = data[data.length - 1][0];
+
+  const startInput = document.getElementById("startDate");
+  const endInput = document.getElementById("endDate");
+
+  startInput.min = minDate;
+  startInput.max = maxDate;
+  endInput.min = minDate;
+  endInput.max = maxDate;
+
+  // Clamp current values if out of range
+  if (startInput.value < minDate) startInput.value = minDate;
+  if (startInput.value > maxDate) startInput.value = maxDate;
+  if (endInput.value < minDate) endInput.value = minDate;
+  if (endInput.value > maxDate) endInput.value = maxDate;
 }
 
 // ===== Event Bindings =====
@@ -32,6 +55,11 @@ function bindEvents() {
     r.addEventListener("change", () => {
       document.getElementById("dcaSettings").classList.toggle("hidden", r.value !== "dca" || !r.checked);
     });
+  });
+
+  // Index change — update date constraints
+  document.getElementById("indexSelect").addEventListener("change", () => {
+    updateDateConstraints();
   });
 
   // Crisis presets
