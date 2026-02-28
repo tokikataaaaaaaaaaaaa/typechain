@@ -78,6 +78,13 @@ function bindEvents() {
     updateDateConstraints();
   });
 
+  // Currency change — update labels and defaults
+  document.querySelectorAll('input[name="currency"]').forEach((r) => {
+    r.addEventListener("change", () => {
+      updateCurrency(r.value);
+    });
+  });
+
   // Crisis presets
   document.getElementById("crisisPreset").addEventListener("change", (e) => {
     const preset = CRISIS_PRESETS[e.target.value];
@@ -106,6 +113,30 @@ function bindEvents() {
   // Chart scale
   document.getElementById("scaleLinear").addEventListener("click", () => setChartScale("linear"));
   document.getElementById("scaleLog").addEventListener("click", () => setChartScale("logarithmic"));
+}
+
+// ===== Currency Toggle =====
+const CURRENCY_DEFAULTS = {
+  USD: { initial: 10000, dca: 500, step: 100, dcaStep: 50, symbol: "$" },
+  JPY: { initial: 1500000, dca: 50000, step: 10000, dcaStep: 5000, symbol: "¥" },
+};
+
+function updateCurrency(currency) {
+  currentCurrency = currency;
+  const cfg = CURRENCY_DEFAULTS[currency];
+  const sym = cfg.symbol;
+
+  document.getElementById("initialAmountLabel").textContent = `初期投資額 (${sym})`;
+  document.getElementById("dcaAmountLabel").textContent = `定期積立額 (${sym})`;
+
+  const initialInput = document.getElementById("initialAmount");
+  const dcaInput = document.getElementById("dcaAmount");
+
+  initialInput.value = cfg.initial;
+  initialInput.step = cfg.step;
+  initialInput.min = cfg.step;
+  dcaInput.value = cfg.dca;
+  dcaInput.step = cfg.dcaStep;
 }
 
 // ===== Mode Toggle =====

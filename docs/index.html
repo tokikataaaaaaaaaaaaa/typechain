@@ -13,6 +13,7 @@
     <div class="header-inner">
       <h1>US ETF Leverage Backtester</h1>
       <p class="subtitle">米国ETF レバレッジ・バックテストシミュレーター</p>
+      <a class="feedback-link" href="https://www.instagram.com/tokikata_dev?igsh=ejhqdmozejkzbHE2&utm_source=qr" target="_blank" rel="noopener">改善要望はこちら @tokikata_dev</a>
     </div>
   </header>
 
@@ -59,15 +60,24 @@
         </div>
       </div>
 
+      <!-- Currency Selection -->
+      <div class="setting-section">
+        <label class="setting-label">通貨</label>
+        <div class="leverage-options">
+          <label class="radio-label"><input type="radio" name="currency" value="USD" checked /> USD ($)</label>
+          <label class="radio-label"><input type="radio" name="currency" value="JPY" /> JPY (¥)</label>
+        </div>
+      </div>
+
       <!-- Investment Amount -->
       <div class="setting-section">
-        <label class="setting-label">初期投資額 ($)</label>
+        <label class="setting-label" id="initialAmountLabel">初期投資額 ($)</label>
         <input type="number" id="initialAmount" value="10000" min="100" step="100" />
       </div>
 
       <!-- DCA Settings -->
       <div class="setting-section dca-settings hidden" id="dcaSettings">
-        <label class="setting-label">定期積立額 ($)</label>
+        <label class="setting-label" id="dcaAmountLabel">定期積立額 ($)</label>
         <input type="number" id="dcaAmount" value="500" min="0" step="50" />
         <label class="setting-label" style="margin-top:0.6rem">積立頻度</label>
         <select id="dcaFrequency">
@@ -208,7 +218,6 @@
   <footer>
     <p>本シミュレーターは過去データに基づく参考ツールです。将来の投資成果を保証するものではありません。</p>
     <p>参考: <a href="https://www.bustudy.kr/usetf" target="_blank" rel="noopener">bustudy.kr/usetf</a> | データ提供: Stooq.com</p>
-    <p>改善要望はこちらまで: <a href="https://www.instagram.com/tokikata_dev?igsh=ejhqdmozejkzbHE2&utm_source=qr" target="_blank" rel="noopener">@tokikata_dev (Instagram)</a></p>
   </footer>
 
   <script src="data/sp500.js"></script>

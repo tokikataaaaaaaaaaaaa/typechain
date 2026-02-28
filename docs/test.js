@@ -19,7 +19,7 @@ const files = [
 ];
 
 for (const file of files) {
-  const code = fs.readFileSync(file, "utf8").replace(/\bconst\b/g, "var");
+  const code = fs.readFileSync(file, "utf8").replace(/\b(const|let)\b/g, "var");
   vm.runInContext(code, vm.createContext(ctx));
 }
 
@@ -139,6 +139,25 @@ for (const key of Object.keys(expectedIndices)) {
   const filtered = ctx.getIndexData(key, effectiveStart, data[data.length - 1][0]);
   assert(filtered.length > 0, `"${key}" has data with clamped start ${effectiveStart} (data starts ${dataStart})`);
 }
+
+// ===== Test 9: formatMoney currency support =====
+console.log("\n=== Test 9: formatMoney currency support ===");
+// USD mode
+ctx.currentCurrency = "USD";
+assert(ctx.formatMoney(1234567).includes("$"), "USD: formatMoney includes $");
+assert(ctx.formatMoney(1234567).includes("M"), "USD: large values use M suffix");
+assert(ctx.formatMoney(5000).includes("K"), "USD: medium values use K suffix");
+assert(ctx.formatMoney(500).includes("$"), "USD: small values include $");
+
+// JPY mode
+ctx.currentCurrency = "JPY";
+assert(ctx.formatMoney(150000000).includes("¥"), "JPY: formatMoney includes ¥");
+assert(ctx.formatMoney(150000000).includes("億"), "JPY: large values use 億 suffix");
+assert(ctx.formatMoney(50000).includes("万"), "JPY: medium values use 万 suffix");
+assert(ctx.formatMoney(5000).includes("¥"), "JPY: small values include ¥");
+
+// Reset
+ctx.currentCurrency = "USD";
 
 // ===== Summary =====
 console.log(`\n===== RESULTS: ${passed} passed, ${failed} failed =====`);
