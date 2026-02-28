@@ -323,7 +323,8 @@ header {
   text-transform: none;
   letter-spacing: normal;
 }
-.tip:hover::after {
+.tip:hover::after,
+.tip.active::after {
   content: attr(data-tip);
   position: absolute;
   bottom: calc(100% + 4px);
