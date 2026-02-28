@@ -33,6 +33,9 @@
           <option value="sp500">S&P 500</option>
           <option value="nasdaq100">Nasdaq 100</option>
           <option value="dowjones">Dow Jones</option>
+          <option value="vti">VTI (米国株式市場全体)</option>
+          <option value="nikkei225">日経225</option>
+          <option value="gold">Gold (金)</option>
         </select>
       </div>
 
@@ -146,7 +149,7 @@
         <div class="placeholder-icon">&#128200;</div>
         <h2>バックテストを実行してください</h2>
         <p>左パネルで投資条件を設定し、「バックテスト実行」ボタンを押してください。</p>
-        <p class="data-info">S&P 500 / Nasdaq 100 / Dow Jones<br>1990年〜現在の日次データを収録</p>
+        <p class="data-info">S&P 500 / Nasdaq 100 / Dow Jones / VTI / 日経225 / Gold<br>日次データを収録（期間は指数により異なります）</p>
       </div>
 
       <div class="results-content hidden" id="resultsContent">
@@ -210,6 +213,9 @@
   <script src="data/sp500.js"></script>
   <script src="data/nasdaq100.js"></script>
   <script src="data/dowjones.js"></script>
+  <script src="data/vti.js"></script>
+  <script src="data/nikkei225.js"></script>
+  <script src="data/gold.js"></script>
   <script src="engine.js"></script>
   <script src="app.js"></script>
 </body>

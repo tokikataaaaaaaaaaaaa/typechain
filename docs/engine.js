@@ -10,12 +10,18 @@ const INDEX_DATA_MAP = {
   sp500: () => SP500_DATA,
   nasdaq100: () => NASDAQ100_DATA,
   dowjones: () => DOWJONES_DATA,
+  vti: () => VTI_DATA,
+  nikkei225: () => NIKKEI225_DATA,
+  gold: () => GOLD_DATA,
 };
 
 const INDEX_LABELS = {
   sp500: "S&P 500",
   nasdaq100: "Nasdaq 100",
   dowjones: "Dow Jones",
+  vti: "VTI (米国株式市場全体)",
+  nikkei225: "日経225",
+  gold: "Gold (XAU/USD)",
 };
 
 // Typical annual expense ratios
