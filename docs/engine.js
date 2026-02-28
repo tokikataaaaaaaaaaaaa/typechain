@@ -271,7 +271,14 @@ function formatPct(v) {
   return (v * 100).toFixed(2) + "%";
 }
 
+let currentCurrency = "USD";
+
 function formatMoney(v) {
+  if (currentCurrency === "JPY") {
+    if (v >= 1e8) return "¥" + (v / 1e8).toFixed(2) + "億";
+    if (v >= 1e4) return "¥" + (v / 1e4).toFixed(1) + "万";
+    return "¥" + Math.round(v).toLocaleString();
+  }
   if (v >= 1e6) return "$" + (v / 1e6).toFixed(2) + "M";
   if (v >= 1e3) return "$" + (v / 1e3).toFixed(1) + "K";
   return "$" + v.toFixed(0);

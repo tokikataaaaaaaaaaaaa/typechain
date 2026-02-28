@@ -46,6 +46,21 @@ header {
   background-clip: text;
 }
 .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.3rem; }
+.feedback-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.3rem 1rem;
+  background: rgba(79, 140, 255, 0.15);
+  border: 1px solid var(--primary);
+  border-radius: 20px;
+  color: var(--primary);
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+.feedback-link:hover {
+  background: var(--primary);
+  color: #fff;
+}
 
 /* ===== App Layout ===== */
 .app-layout {
