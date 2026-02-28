@@ -17,6 +17,18 @@ function tip(term) {
   return t ? ` <span class="tip" data-tip="${t}">&#9432;</span>` : "";
 }
 
+// ===== Tooltip click/tap support for mobile =====
+document.addEventListener("click", (e) => {
+  const tip = e.target.closest(".tip");
+  if (tip) {
+    e.stopPropagation();
+    document.querySelectorAll(".tip.active").forEach(el => { if (el !== tip) el.classList.remove("active"); });
+    tip.classList.toggle("active");
+  } else {
+    document.querySelectorAll(".tip.active").forEach(el => el.classList.remove("active"));
+  }
+});
+
 // ===== DOM Ready =====
 document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
