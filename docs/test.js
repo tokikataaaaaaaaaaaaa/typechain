@@ -159,6 +159,18 @@ assert(ctx.formatMoney(5000).includes("¥"), "JPY: small values include ¥");
 // Reset
 ctx.currentCurrency = "USD";
 
+// ===== Test 10: currentCurrency uses var (not let) for cross-script access =====
+console.log("\n=== Test 10: currentCurrency is declared with var ===");
+const engineSource = fs.readFileSync("docs/engine.js", "utf8");
+assert(
+  /\bvar\s+currentCurrency\b/.test(engineSource),
+  "engine.js declares currentCurrency with var (required for cross-script access in browser)"
+);
+assert(
+  !/\blet\s+currentCurrency\b/.test(engineSource),
+  "engine.js does NOT use let for currentCurrency (let is not global in browser)"
+);
+
 // ===== Summary =====
 console.log(`\n===== RESULTS: ${passed} passed, ${failed} failed =====`);
 process.exit(failed > 0 ? 1 : 0);
