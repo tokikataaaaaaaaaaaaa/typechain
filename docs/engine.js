@@ -271,7 +271,7 @@ function formatPct(v) {
   return (v * 100).toFixed(2) + "%";
 }
 
-let currentCurrency = "USD";
+var currentCurrency = "USD";
 
 function formatMoney(v) {
   if (currentCurrency === "JPY") {
