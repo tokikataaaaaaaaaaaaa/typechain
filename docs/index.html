@@ -132,8 +132,9 @@
       <div class="setting-section">
         <label class="checkbox-label">
           <input type="checkbox" id="includeExpense" checked />
-          経費率を反映 <span class="tip" data-tip="ETFの年間運用コスト。レバレッジが高いほど経費率も高くなります">&#9432;</span>（1x:0.03%, 2x:0.90%, 3x:0.95%）
+          経費率を反映 <span class="tip" data-tip="ETFの年間運用コスト。レバレッジが高いほど経費率も高くなります">&#9432;</span>
         </label>
+        <p class="setting-hint" id="expenseInfo"></p>
       </div>
 
       <!-- Expert Mode Settings -->
@@ -161,6 +162,7 @@
         <h2>バックテストを実行してください</h2>
         <p>左パネルで投資条件を設定し、「バックテスト実行」ボタンを押してください。</p>
         <p class="data-info">S&P 500 / Nasdaq 100 / Dow Jones / VTI / 日経225 / Gold<br>日次データを収録（期間は指数により異なります）</p>
+        <p class="data-info" style="margin-top:0.5rem;font-size:0.78rem">対応ETF: VOO/SSO/UPRO, QQQ/QLD/TQQQ, DIA/DDM/UDOW, VTI, GLD/UGL</p>
       </div>
 
       <div class="results-content hidden" id="resultsContent">

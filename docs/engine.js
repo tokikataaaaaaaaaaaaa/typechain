@@ -24,8 +24,32 @@ const INDEX_LABELS = {
   gold: "Gold (XAU/USD)",
 };
 
-// Typical annual expense ratios
-const EXPENSE_RATIOS = { 1: 0.0003, 2: 0.0090, 3: 0.0095 };
+// ETF mapping: index + leverage -> specific ETF ticker & expense ratio
+const ETF_MAP = {
+  sp500:    { 1: { ticker: "VOO",  name: "Vanguard S&P 500 ETF",               expense: 0.0003 },
+              2: { ticker: "SSO",  name: "ProShares Ultra S&P500",             expense: 0.0089 },
+              3: { ticker: "UPRO", name: "ProShares UltraPro S&P500",          expense: 0.0091 } },
+  nasdaq100:{ 1: { ticker: "QQQ",  name: "Invesco QQQ Trust",                  expense: 0.0020 },
+              2: { ticker: "QLD",  name: "ProShares Ultra QQQ",                expense: 0.0095 },
+              3: { ticker: "TQQQ", name: "ProShares UltraPro QQQ",             expense: 0.0086 } },
+  dowjones: { 1: { ticker: "DIA",  name: "SPDR Dow Jones Industrial Avg ETF",  expense: 0.0016 },
+              2: { ticker: "DDM",  name: "ProShares Ultra Dow30",              expense: 0.0095 },
+              3: { ticker: "UDOW", name: "ProShares UltraPro Dow30",           expense: 0.0095 } },
+  vti:      { 1: { ticker: "VTI",  name: "Vanguard Total Stock Market ETF",    expense: 0.0003 } },
+  nikkei225:{ 1: { ticker: "1321", name: "NEXT FUNDS 日経225連動型上場投信",     expense: 0.0011 } },
+  gold:     { 1: { ticker: "GLD",  name: "SPDR Gold Shares",                   expense: 0.0040 },
+              2: { ticker: "UGL",  name: "ProShares Ultra Gold",               expense: 0.0095 } },
+};
+
+function getETFInfo(indexKey, leverage) {
+  const indexMap = ETF_MAP[indexKey];
+  return indexMap ? indexMap[leverage] || null : null;
+}
+
+function getAvailableLeverages(indexKey) {
+  const indexMap = ETF_MAP[indexKey];
+  return indexMap ? Object.keys(indexMap).map(Number) : [1];
+}
 
 const LEVERAGE_COLORS = {
   1: { line: "#22c55e", bg: "rgba(34,197,94,0.1)" },
@@ -66,12 +90,15 @@ function runBacktest(data, leverage, opts) {
     dcaFrequency = "monthly",
     dcaIncrease = 0,
     includeExpense = true,
+    indexKey = "sp500",
   } = opts;
 
   if (data.length < 2) return null;
 
+  const etfInfo = getETFInfo(indexKey, leverage);
+  const expenseRatio = etfInfo ? etfInfo.expense : 0;
   const dailyExpense = includeExpense
-    ? EXPENSE_RATIOS[leverage] / 252
+    ? expenseRatio / 252
     : 0;
 
   const dates = [];
@@ -187,6 +214,7 @@ function runBacktest(data, leverage, opts) {
     yearlyReturns,
     leverage,
     dailyReturns,
+    etfInfo,
   };
 }
 

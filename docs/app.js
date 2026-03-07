@@ -33,6 +33,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   setDateRange();
+  updateLeverageOptions();
 });
 
 // ===== Set initial date range from data =====
@@ -85,9 +86,10 @@ function bindEvents() {
     });
   });
 
-  // Index change — update date constraints
+  // Index change — update date constraints and available leverages
   document.getElementById("indexSelect").addEventListener("change", () => {
     updateDateConstraints();
+    updateLeverageOptions();
   });
 
   // Currency change — update labels and defaults
@@ -151,6 +153,48 @@ function updateCurrency(currency) {
   dcaInput.step = cfg.dcaStep;
 }
 
+// ===== Update Leverage Options Based on Selected Index =====
+function updateLeverageOptions() {
+  const indexKey = document.getElementById("indexSelect").value;
+  const available = getAvailableLeverages(indexKey);
+
+  document.querySelectorAll('input[name="leverage"]').forEach((radio) => {
+    const val = radio.value;
+    if (val === "all") {
+      // "all" shows only available leverages
+      radio.closest(".radio-label").style.display = "";
+      return;
+    }
+    const lev = parseInt(val);
+    const etf = getETFInfo(indexKey, lev);
+    const label = radio.closest(".radio-label");
+    if (etf) {
+      label.style.display = "";
+      label.querySelector(".etf-badge")?.remove();
+      const badge = document.createElement("span");
+      badge.className = "etf-badge";
+      badge.textContent = etf.ticker;
+      label.appendChild(badge);
+    } else {
+      label.style.display = "none";
+      if (radio.checked) {
+        // Fall back to 1x
+        document.querySelector('input[name="leverage"][value="1"]').checked = true;
+      }
+    }
+  });
+
+  // Update expense ratio display
+  const expenseEl = document.getElementById("expenseInfo");
+  if (expenseEl) {
+    const parts = available.map((lev) => {
+      const etf = getETFInfo(indexKey, lev);
+      return etf ? `${etf.ticker}(${lev}x): ${(etf.expense * 100).toFixed(2)}%` : null;
+    }).filter(Boolean);
+    expenseEl.textContent = parts.join(", ");
+  }
+}
+
 // ===== Mode Toggle =====
 function setMode(mode) {
   currentMode = mode;
@@ -192,7 +236,9 @@ function executeBacktest() {
     return;
   }
 
-  const leverages = leverageVal === "all" ? [1, 2, 3] : [parseInt(leverageVal)];
+  const available = getAvailableLeverages(indexKey);
+  const leverages = leverageVal === "all" ? available : [parseInt(leverageVal)];
+  opts.indexKey = indexKey;
 
   // Beginner mode: use most recent N years of full data
   if (currentMode === "beginner") {
@@ -273,9 +319,10 @@ function renderStatsCards(results) {
   const primary = results[results.length - 1]; // highest leverage
 
   const cards = [];
+  const etfTag = (r) => r.etfInfo ? r.etfInfo.ticker : `${r.leverage}x`;
   results.forEach((r) => {
     cards.push(
-      { label: `最終資産 (${r.leverage}x)`, value: formatMoney(r.finalValue), cls: r.totalReturn >= 0 ? "positive" : "negative" },
+      { label: `最終資産 (${etfTag(r)})`, value: formatMoney(r.finalValue), cls: r.totalReturn >= 0 ? "positive" : "negative" },
     );
   });
   cards.push(
@@ -283,12 +330,12 @@ function renderStatsCards(results) {
   );
   results.forEach((r) => {
     cards.push(
-      { label: `CAGR${tip("CAGR")} (${r.leverage}x)`, value: formatPct(r.cagr), cls: r.cagr >= 0 ? "positive" : "negative" },
+      { label: `CAGR${tip("CAGR")} (${etfTag(r)})`, value: formatPct(r.cagr), cls: r.cagr >= 0 ? "positive" : "negative" },
     );
   });
   results.forEach((r) => {
     cards.push(
-      { label: `MDD${tip("MDD")} (${r.leverage}x)`, value: formatPct(r.maxDrawdown), cls: "negative" },
+      { label: `MDD${tip("MDD")} (${etfTag(r)})`, value: formatPct(r.maxDrawdown), cls: "negative" },
     );
   });
 
@@ -326,8 +373,9 @@ function renderMainChart(results, title) {
     }
 
     const color = LEVERAGE_COLORS[r.leverage];
+    const etfLabel = r.etfInfo ? `${r.etfInfo.ticker} (${r.leverage}x)` : `${r.leverage}x`;
     return {
-      label: `${r.leverage}x レバレッジ`,
+      label: etfLabel,
       data: sampledDates.map((d, i) => ({ x: d, y: sampledValues[i] })),
       borderColor: color.line,
       backgroundColor: color.bg,
@@ -388,8 +436,9 @@ function renderDrawdownChart(results) {
     }
 
     const color = LEVERAGE_COLORS[r.leverage];
+    const etfLabel = r.etfInfo ? `${r.etfInfo.ticker} (${r.leverage}x)` : `${r.leverage}x`;
     return {
-      label: `${r.leverage}x ドローダウン`,
+      label: `${etfLabel} ドローダウン`,
       data: sampled,
       borderColor: color.line,
       backgroundColor: color.bg,
@@ -449,8 +498,11 @@ function renderRollingChart(rollingResults, rollingYears) {
     for (let i = 0; i < rr.results.length; i += step) {
       sampled.push({ x: rr.results[i].startDate, y: rr.results[i].cagr * 100 });
     }
+    const indexKey = document.getElementById("indexSelect").value;
+    const etf = getETFInfo(indexKey, rr.leverage);
+    const etfLabel = etf ? `${etf.ticker} (${rr.leverage}x)` : `${rr.leverage}x`;
     return {
-      label: `${rr.leverage}x CAGR`,
+      label: `${etfLabel} CAGR`,
       data: sampled,
       borderColor: color.line,
       backgroundColor: color.bg,
@@ -506,9 +558,12 @@ function renderStatsTable(results) {
   const head = document.getElementById("statsTableHead");
   const body = document.getElementById("statsTableBody");
 
-  head.innerHTML = `<th>指標</th>` + results.map((r) => `<th>${r.leverage}x</th>`).join("");
+  const etfTag = (r) => r.etfInfo ? `${r.etfInfo.ticker} (${r.leverage}x)` : `${r.leverage}x`;
+  head.innerHTML = `<th>指標</th>` + results.map((r) => `<th>${etfTag(r)}</th>`).join("");
 
   const rows = [
+    { label: "ETF", fn: (r) => r.etfInfo ? r.etfInfo.name : "-" },
+    { label: "経費率", fn: (r) => r.etfInfo ? (r.etfInfo.expense * 100).toFixed(2) + "%" : "-" },
     { label: "最終資産", fn: (r) => formatMoney(r.finalValue) },
     { label: "総投資額", fn: (r) => formatMoney(r.totalInvested) },
     { label: "総リターン", fn: (r) => formatPct(r.totalReturn) },
@@ -532,7 +587,8 @@ function renderYearlyTable(results) {
   const head = document.getElementById("yearlyTableHead");
   const body = document.getElementById("yearlyTableBody");
 
-  head.innerHTML = `<th>年</th>` + results.map((r) => `<th>${r.leverage}x</th>`).join("");
+  const etfTag = (r) => r.etfInfo ? `${r.etfInfo.ticker} (${r.leverage}x)` : `${r.leverage}x`;
+  head.innerHTML = `<th>年</th>` + results.map((r) => `<th>${etfTag(r)}</th>`).join("");
 
   // Collect all years
   const allYears = new Set();
@@ -558,12 +614,15 @@ function renderRollingStatsCards(rollingResults) {
   const container = document.getElementById("statsCards");
   const cards = [];
 
+  const indexKey = document.getElementById("indexSelect").value;
   rollingResults.forEach((rr) => {
+    const etf = getETFInfo(indexKey, rr.leverage);
+    const tag = etf ? etf.ticker : `${rr.leverage}x`;
     cards.push(
-      { label: `平均CAGR${tip("CAGR")} (${rr.leverage}x)`, value: formatPct(rr.stats.avgCAGR), cls: rr.stats.avgCAGR >= 0 ? "positive" : "negative" },
-      { label: `最良CAGR${tip("CAGR")} (${rr.leverage}x)`, value: formatPct(rr.stats.maxCAGR), cls: "positive" },
-      { label: `最悪CAGR${tip("CAGR")} (${rr.leverage}x)`, value: formatPct(rr.stats.minCAGR), cls: rr.stats.minCAGR >= 0 ? "positive" : "negative" },
-      { label: `プラス確率 (${rr.leverage}x)`, value: formatPct(rr.stats.positiveRate), cls: rr.stats.positiveRate >= 0.5 ? "positive" : "negative" },
+      { label: `平均CAGR${tip("CAGR")} (${tag})`, value: formatPct(rr.stats.avgCAGR), cls: rr.stats.avgCAGR >= 0 ? "positive" : "negative" },
+      { label: `最良CAGR${tip("CAGR")} (${tag})`, value: formatPct(rr.stats.maxCAGR), cls: "positive" },
+      { label: `最悪CAGR${tip("CAGR")} (${tag})`, value: formatPct(rr.stats.minCAGR), cls: rr.stats.minCAGR >= 0 ? "positive" : "negative" },
+      { label: `プラス確率 (${tag})`, value: formatPct(rr.stats.positiveRate), cls: rr.stats.positiveRate >= 0.5 ? "positive" : "negative" },
     );
   });
 
@@ -581,7 +640,11 @@ function renderRollingStatsTable(rollingResults) {
   const head = document.getElementById("statsTableHead");
   const body = document.getElementById("statsTableBody");
 
-  head.innerHTML = `<th>指標</th>` + rollingResults.map((r) => `<th>${r.leverage}x</th>`).join("");
+  const indexKey2 = document.getElementById("indexSelect").value;
+  head.innerHTML = `<th>指標</th>` + rollingResults.map((r) => {
+    const etf = getETFInfo(indexKey2, r.leverage);
+    return `<th>${etf ? etf.ticker + " (" + r.leverage + "x)" : r.leverage + "x"}</th>`;
+  }).join("");
 
   const rows = [
     { label: "テスト回数", fn: (r) => r.stats.count },

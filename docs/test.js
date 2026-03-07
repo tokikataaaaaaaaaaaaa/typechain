@@ -88,16 +88,21 @@ for (const key of Object.keys(expectedIndices)) {
   const allData = ctx.INDEX_DATA_MAP[key]();
   // Use last 252 trading days (1 year)
   const data = allData.slice(allData.length - 252);
-  for (const leverage of [1, 2, 3]) {
+  const availLevs = ctx.getAvailableLeverages(key);
+  for (const leverage of availLevs) {
     const result = ctx.runBacktest(data, leverage, {
       initialAmount: 10000,
       investType: "lump",
       includeExpense: true,
+      indexKey: key,
     });
+    const etf = ctx.getETFInfo(key, leverage);
     assert(result !== null, `runBacktest("${key}", ${leverage}x) returns result`);
     assert(typeof result.cagr === "number" && !isNaN(result.cagr), `runBacktest("${key}", ${leverage}x) CAGR is valid number`);
     assert(typeof result.maxDrawdown === "number", `runBacktest("${key}", ${leverage}x) MDD is valid`);
     assert(result.dates.length === data.length, `runBacktest("${key}", ${leverage}x) dates count matches`);
+    assert(result.etfInfo !== null && result.etfInfo !== undefined, `runBacktest("${key}", ${leverage}x) has etfInfo`);
+    assert(result.etfInfo.ticker === etf.ticker, `runBacktest("${key}", ${leverage}x) etfInfo.ticker = ${etf.ticker}`);
   }
 }
 
@@ -170,6 +175,24 @@ assert(
   !/\blet\s+currentCurrency\b/.test(engineSource),
   "engine.js does NOT use let for currentCurrency (let is not global in browser)"
 );
+
+// ===== Test 11: ETF_MAP and getETFInfo =====
+console.log("\n=== Test 11: ETF_MAP completeness ===");
+for (const key of Object.keys(expectedIndices)) {
+  const available = ctx.getAvailableLeverages(key);
+  assert(available.includes(1), `${key} has 1x ETF`);
+  for (const lev of available) {
+    const etf = ctx.getETFInfo(key, lev);
+    assert(etf !== null, `getETFInfo("${key}", ${lev}) returns info`);
+    assert(typeof etf.ticker === "string" && etf.ticker.length > 0, `${key} ${lev}x has ticker: ${etf.ticker}`);
+    assert(typeof etf.expense === "number" && etf.expense >= 0, `${key} ${lev}x expense is valid: ${etf.expense}`);
+  }
+}
+// VTI should not have 2x or 3x
+assert(ctx.getETFInfo("vti", 2) === null, "VTI has no 2x ETF");
+assert(ctx.getETFInfo("vti", 3) === null, "VTI has no 3x ETF");
+// Gold should not have 3x
+assert(ctx.getETFInfo("gold", 3) === null, "Gold has no 3x ETF");
 
 // ===== Summary =====
 console.log(`\n===== RESULTS: ${passed} passed, ${failed} failed =====`);
